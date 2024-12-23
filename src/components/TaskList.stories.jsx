@@ -1,20 +1,11 @@
-
 import TaskList from './TaskList';
-
 import * as TaskStories from './Task.stories';
+import { Provider } from 'react-redux';
+import { configureStore, createSlice } from '@reduxjs/toolkit';
 
-export default {
-  component: TaskList,
-  title: 'TaskList',
-  decorators: [(story) => <div style={{ margin: '3rem' }}>{story()}</div>],
-  tags: ['autodocs'],
-  args: {
-    ...TaskStories.ActionsData,
-  },
-};
-
-export const Default = {
-  args: {
+// A super-simple mock of the state of the store
+export const MockedState = {
+  //args: {
     // Shaping the stories through args composition.
     // The data was inherited from the Default story in Task.stories.jsx.
     tasks: [
@@ -25,30 +16,122 @@ export const Default = {
       { ...TaskStories.Default.args.task, id: '5', title: 'Task 5' },
       { ...TaskStories.Default.args.task, id: '6', title: 'Task 6' },
     ],
-  },
+    status: 'idle',
+    error: null,
+  };
+
+// ** A super-simple mock of a redux store
+const Mockstore = ({ taskboxState, children}) => (
+    <Provider
+        store={configureStore({
+            reducer: {
+                taskbox: createSlice({
+                    name: 'taskbox',
+                    initialState: taskboxState,
+                    reducers: {
+                        updateTaskState: (state, action) => {
+                            const { id, newTaskState } = action.payload;
+                            const task = state.tasks.findIndex((task) => task.id === id);
+                            if (task >= 0) {
+                                state.tasks[task].state = newTaskState;
+                            }
+                        },
+                    },
+                }).reducer,
+            },
+        })}
+    >
+        {children}
+    </Provider>
+);
+
+export default {
+    component: TaskList,
+    title: 'TaskList',
+    decorators: [(story) =>
+        <div style={{margin: '3rem'}}>
+            {story()}
+        </div>],
+    tags: ['autodocs'],
+    excludeStories: /.*MockedState$/, 
+    //excludeStories : 모의된 상태(mocked state)가 스토리로 처리되는 것을 방지하기 위한 스토리북 구성 필드
+};
+
+export const Default = {
+    decorators: [
+        (story) => <Mockstore taskboxState={MockedState}>
+            {story()}
+        </Mockstore>,
+    ],
 };
 
 export const WithPinnedTasks = {
-  args: {
+    decorators: [
+        (story) => {
+            const pinnedtasks = [
+                ...MockedState.tasks.slice(0,5),
+                {id : '6',
+                 title: 'Task 6 (pinned)',
+                 state: 'TASK_PINNED'},
+            ];
+
+            return (
+                <Mockstore
+                    taskboxState={{
+                        ...MockedState,
+                        tasks: pinnedtasks,
+                    }}
+                >
+                    {story()}
+                </Mockstore>
+            );
+        },
+    ],
+};
+  /*args: {
     tasks: [
       ...Default.args.tasks.slice(0, 5),
       { id: '6', title: 'Task 6 (pinned)', state: 'TASK_PINNED' },
     ],
-  },
-};
+  },*/
 
 export const Loading = {
-  args: {
+    decorators: [
+        (story) => (
+            <Mockstore taskboxState={{
+                ...MockedState,
+                status: 'loading',
+                }}
+            >
+                {story()}
+            </Mockstore>
+        ),
+    ],
+};
+  /*args: {
     tasks: [],
     loading: true,
   },
-};
+}; */
 
 export const Empty = {
-  args: {
+    decorators: [
+        (story) => (
+            <Mockstore
+                taskboxState={{
+                    ...MockedState,
+                    tasks:[],
+                }}
+            >
+                {story()}
+            </Mockstore>
+        ),
+    ],
+};
+  /*args: {
     // Shaping the stories through args composition.
     // Inherited data coming from the Loading story.
     ...Loading.args,
     loading: false,
   },
-};
+}; */
