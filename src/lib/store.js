@@ -1,21 +1,39 @@
-import { configureStore, createSlice } from '@reduxjs/toolkit';
+import { configureStore, createSlice, createAsyncThunk, } from '@reduxjs/toolkit';
 /* Redux store/actions/reducer implementation.*/
 /* (True app would be more complex & separated) */
 
-const defaultTasks= [
+/*const defaultTasks= [
     {id: '1', title: 'Something', state: 'TASK_INBOX'},
     {id: '2', title: 'Something more', state: 'TASK_INBOX'},
     {id: '3', title: 'Something else', state: 'TASK_INBOX'},
     {id: '4', title: 'Something again', state: 'TASK_INBOX'},
 ];
+*/
+
 /* Initial state of store when the app loads */
 /* (Usually fetch from a server) */
 
 const TaskBoxData = {
-        tasks: defaultTasks,
+        tasks: [],
         status: 'idle',
         error: null,
 };
+
+//Creates an asyncThunk to fetch tasks from a remote endpoint.
+export const fetchTasks = createAsyncThunk('todos/fetchTodos', async () => {
+    const response = await fetch(
+        'https://jsonplaceholder.typicode.com/todos?userId=1'
+    );
+    const data = await response.json();
+    const result = data.map((task) => ({
+        id: `${task.id}`,
+        title: task.title,
+        state: task.completed ? 'TASK_ARCHIVED' : 'TASK_INBOX',
+    }));
+    return result;
+});
+
+// The store is created here.
 
 const TasksSlice = createSlice({
     name: 'taskbox',
@@ -29,9 +47,30 @@ const TasksSlice = createSlice({
             }
         },
     },
+    //Extend the reducer for the async actions
+    extraReducers(builder) {
+        builder
+        .addCase(fetchTasks.pending, (state) => {
+            state.status = 'loading';
+            state.error = null;
+            state.tasks = [];
+        })
+        .addCase(fetchTasks.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            state.error = null;
+            /* Add any fetched tasks to the array */
+            state.tasks = action.payload;
+        })
+        .addCase(fetchTasks.rejected, (state) => {
+            state.status = 'failed';
+            state.error = 'Something went wrong';
+            state.tasks= [];
+        });
+    },
 });
 
-export const {updateTaskState} = TasksSlice.actions;
+
+export const { updateTaskState } = TasksSlice.actions;
 /* The actions contained in the slice are exported for usage in furthur componenets. */
 
 const store = configureStore({
